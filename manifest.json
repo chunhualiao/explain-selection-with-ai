@@ -4,7 +4,7 @@
 	"version": "2.1.1",
 	"minAppVersion": "0.15.0",
 	"description": "Use OpenAI, OpenRouter, Ollama, or any OpenAI-compatible LLM endpoint to explain selected text in context.",
-	"author": "Chunhua Liao",
+	"author": "Chunhua Liao (original work by BWurster)",
 	"authorUrl": "https://github.com/liaosvcaf",
 	"isDesktopOnly": false
 }

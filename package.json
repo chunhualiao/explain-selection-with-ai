@@ -10,7 +10,7 @@
 		"test": "jest"
 	},
 	"keywords": [],
-	"author": "Chunhua Liao <liao@svcaf.org>",
+	"author": "Chunhua Liao (original work by BWurster)",
 	"license": "MIT",
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",

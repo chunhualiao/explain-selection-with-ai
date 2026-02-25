@@ -51,7 +51,7 @@ Pushing the tag triggers the release workflow (`.github/workflows/release.yml`),
 
 ### Step 5: Verify the release
 
-Go to https://github.com/liaosvcaf/explain-selection-with-ai/releases and confirm:
+Go to https://github.com/BWurster/explain-selection-with-ai/releases and confirm:
 - [ ] Tag matches version in `manifest.json` exactly (no `v` prefix)
 - [ ] `main.js` is attached
 - [ ] `manifest.json` is attached
@@ -115,7 +115,7 @@ Edit `community-plugins.json` in your fork. Add your plugin entry **at the end**
   "name": "Explain Selection With AI",
   "author": "Chunhua Liao",
   "description": "Use OpenAI, OpenRouter, Ollama, or any OpenAI-compatible LLM endpoint to explain selected text in context.",
-  "repo": "liaosvcaf/explain-selection-with-ai"
+  "repo": "BWurster/explain-selection-with-ai"
 }
 ```
 
@@ -168,7 +168,7 @@ If you want beta testers before submitting officially:
 
 1. Create a GitHub Release as described above
 2. Tell testers to install [BRAT](https://obsidian.md/plugins?id=obsidian42-brat) (Beta Reviewer's Auto-update Tool)
-3. In BRAT settings, they add your repo: `liaosvcaf/explain-selection-with-ai`
+3. In BRAT settings, they add your repo: `BWurster/explain-selection-with-ai`
 4. BRAT installs and auto-updates the plugin from your GitHub Releases
 
 This lets you gather feedback before the official community submission.

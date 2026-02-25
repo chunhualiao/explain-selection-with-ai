@@ -1,8 +1,10 @@
 # Obsidian Explain Selection with AI Plugin
 
-[![CI](https://github.com/liaosvcaf/explain-selection-with-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/liaosvcaf/explain-selection-with-ai/actions/workflows/ci.yml)
+[![CI](https://github.com/BWurster/explain-selection-with-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/BWurster/explain-selection-with-ai/actions/workflows/ci.yml)
 
 An [Obsidian](https://obsidian.md) plugin that explains selected text using AI. Select any text, trigger the plugin via the context menu, command palette, or mobile toolbar, and get a streaming AI-powered explanation rendered as Markdown — right inside Obsidian.
+
+**Maintainers:** Chunhua Liao (primary maintainer) · BWurster (original creator)
 
 ## How It Works
 
@@ -136,7 +138,7 @@ For any OpenAI-compatible API:
 
 ## Continuous Integration
 
-Every push and pull request triggers automated CI via [GitHub Actions](https://github.com/liaosvcaf/explain-selection-with-ai/actions):
+Every push and pull request triggers automated CI via [GitHub Actions](https://github.com/BWurster/explain-selection-with-ai/actions):
 
 - **Test job:** Runs the full unit test suite and TypeScript type checking
 - **Build job:** Verifies the plugin compiles and produces a valid `main.js`
