@@ -490,6 +490,9 @@ export class ExplainSelectionWithAiModal extends Modal {
 					term: this.userSelection,
 					context: this.selectionContext,
 					client,
+					onFirstToken: () => {
+						if (firstTokenTime === null) firstTokenTime = Date.now();
+					},
 					onPhaseChange: (phase) => {
 						statusEl.setText(phaseLabels[phase]);
 						if (phase === "repairing") {

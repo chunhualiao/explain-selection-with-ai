@@ -59,6 +59,7 @@ export interface GenerateWikipediaArticleOptions {
 	context: string;
 	client: ArticlePipelineClient;
 	onArticleChunk?: (chunk: string, phase: "draft" | "repair") => void;
+	onFirstToken?: () => void;
 	onPhaseChange?: (phase: ArticlePipelinePhase) => void;
 }
 
@@ -397,8 +398,22 @@ function validationFailureMessage(validation: ArticleValidation): string {
 export async function generateWikipediaArticle(
 	options: GenerateWikipediaArticleOptions
 ): Promise<WikipediaArticleResult> {
-	const { term, context, client, onArticleChunk, onPhaseChange } = options;
+	const {
+		term,
+		context,
+		client,
+		onArticleChunk,
+		onFirstToken,
+		onPhaseChange,
+	} = options;
 	const usage: TokenUsage = { promptTokens: 0, completionTokens: 0 };
+	let firstTokenObserved = false;
+	const observeBufferedChunk = (chunk: string) => {
+		if (!firstTokenObserved && chunk.length > 0) {
+			firstTokenObserved = true;
+			onFirstToken?.();
+		}
+	};
 	const selectedTerm = term.trim();
 	if (!selectedTerm) throw new Error("The selected term must not be empty.");
 
@@ -424,8 +439,9 @@ export async function generateWikipediaArticle(
 	onPhaseChange?.("writing");
 	const draftResponse = await client.stream(
 		buildArticleMessages(term, resolution),
-		() => {
+		(chunk) => {
 			// Buffer unvalidated output. It must not reach the UI or save path.
+			observeBufferedChunk(chunk);
 		}
 	);
 	addUsage(usage, draftResponse.usage);
@@ -456,8 +472,9 @@ export async function generateWikipediaArticle(
 	onPhaseChange?.("repairing");
 	const repairResponse = await client.stream(
 		buildRepairMessages(term, resolution, draftResponse.content, validation),
-		() => {
+		(chunk) => {
 			// Buffer repaired output until the second validation passes.
+			observeBufferedChunk(chunk);
 		}
 	);
 	addUsage(usage, repairResponse.usage);
