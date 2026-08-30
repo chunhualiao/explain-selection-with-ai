@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/chunhualiao/explain-selection-with-ai/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/chunhualiao/explain-selection-with-ai/actions/workflows/ci.yml)
 
-An [Obsidian](https://obsidian.md) plugin that explains selected text using AI. Select any text, trigger the plugin via the context menu, command palette, or mobile toolbar, and get a streaming AI-powered explanation rendered as Markdown — right inside Obsidian.
+An [Obsidian](https://obsidian.md) plugin that explains selected text using AI. Select any text, trigger the plugin via the context menu, command palette, or mobile toolbar, and get a validated AI-powered encyclopedia article rendered as Markdown — right inside Obsidian.
 
 **Maintainers:** Chunhua Liao (primary maintainer) · BWurster (original creator)
 
@@ -10,9 +10,12 @@ An [Obsidian](https://obsidian.md) plugin that explains selected text using AI. 
 
 1. **Select text** in any note.
 2. **Trigger the plugin** using one of the methods below.
-3. A modal opens and the AI response **streams in real time** as rendered Markdown.
-4. When the response completes, **metadata** (model, tokens, cost, timing) is appended to the modal.
-5. Optionally click **"Save as Note & Link"** to save the explanation as a new note and replace your selection with a `[[wiki-link]]` to it.
+3. A context-free call enumerates established meanings for the selected term.
+4. The surrounding line is given to a constrained selector that can return only a candidate index and confidence; it cannot author text for the article.
+5. The chosen context-free term and sense label are used to write a neutral, standalone encyclopedia article.
+6. A quality gate validates completeness, neutrality, unsupported claims, and context leakage; a failing draft is repaired once and validated again.
+7. The validated article is displayed as rendered Markdown, followed by metadata (model, profile, tokens, cost, and timing). Unvalidated drafts are never shown or made savable.
+8. Optionally click **"Save as Note & Link"** to save the explanation as a new note and replace your selection with a `[[wiki-link]]` to it.
 
 ## Ways to Trigger
 
@@ -58,18 +61,20 @@ Choose from four provider options in the plugin settings:
 
 Each provider supports a **"Browse Models"** button in settings that fetches and displays available models from the provider's API. You can search and filter models by name or ID.
 
-### Streaming Markdown responses
+### Validated Markdown responses
 
-The AI response streams into a modal dialog in real time. Text is rendered as full Markdown (headings, lists, code blocks, LaTeX, etc.) using Obsidian's built-in Markdown renderer, so it integrates naturally with your vault's theme and styling.
+The provider response is buffered while the quality gate runs. Only a draft that passes validation—or a repaired article that passes the second validation—is displayed in the modal. Accepted text is rendered as full Markdown (headings, lists, code blocks, LaTeX, etc.) using Obsidian's built-in Markdown renderer, so it integrates naturally with your vault's theme and styling.
 
-### Customizable prompts
+### Wikipedia article profile and custom prompts
 
-In the plugin settings you can configure:
+New installations use the **Wikipedia** article profile by default. It runs a staged pipeline:
 
-- **System prompt** — The system message sent to the LLM (default: *"You are a helpful assistant."*)
-- **User prompt template** — Supports `{{selection}}` and `{{context}}` placeholders. The `{{selection}}` placeholder is replaced with your selected text, and `{{context}}` is replaced with the surrounding text on the same line (up to 500 characters on each side of the cursor). Default: *`Explain "{{selection}}" in the context of "{{context}}"`*
+- **Sense enumeration** receives only the selected term and returns up to eight established, neutral taxonomy candidates.
+- **Sense selection** receives those candidates plus untrusted surrounding text and can return only a numeric candidate index and confidence. It cannot create term or sense text.
+- **Article writing** receives the chosen context-free candidate, never the raw context. It must produce a neutral, third-person article with Origin and history, Definition, Key concepts, and Applications sections.
+- **Validation and repair** checks the draft against structured and deterministic rules. A failing draft is repaired once and must pass a second validation before it can be saved.
 
-This lets you tailor the plugin for different use cases — definitions, translations, summaries, ELI5 explanations, or anything else.
+The staged profile uses four model calls for a passing draft and six when repair is required, so it may take longer and cost more than a single prompt. Existing customized prompts migrate to an explicit **Custom (legacy)** profile and remain editable. Custom mode preserves the original `{{selection}}` / `{{context}}` behavior, but it does not provide Wikipedia-style or context-isolation guarantees.
 
 ### Save as Note & Link
 
@@ -88,6 +93,7 @@ If a note with that name already exists, you're given two choices:
 When the AI response completes, metadata is displayed at the bottom of the modal (and included in saved notes):
 
 - **Model** — The model ID used for the response
+- **Article profile** — Whether the Wikipedia draft passed directly or required repair
 - **Tokens** — Prompt and completion token counts (when the provider reports usage)
 - **Cost** — Estimated cost in USD (available for OpenRouter models with pricing data)
 - **Timing** — Total response duration, time-to-first-token (TTFT), and tokens per second

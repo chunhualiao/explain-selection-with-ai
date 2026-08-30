@@ -23,7 +23,14 @@ import {
 	deriveOllamaBaseUrl,
 	filterModels,
 	sanitizeFileName,
+	migrateSettings,
 } from "./lib";
+import {
+	ArticlePipelineClient,
+	ArticlePipelinePhase,
+	ChatMessage,
+	generateWikipediaArticle,
+} from "./article-pipeline";
 
 // In-memory model cache per provider
 const modelCache: Record<string, ModelInfo[]> = {};
@@ -269,7 +276,9 @@ export default class ExplainSelectionWithAiPlugin extends Plugin {
 					if (!selection) return;
 
 					const menuLabel = buildMenuLabel(
-						this.settings.userPromptTemplate,
+						this.settings.promptProfile === "wikipedia"
+							? 'Explain "{{selection}}" with AI'
+							: this.settings.userPromptTemplate,
 						selection
 					);
 					item.setTitle(menuLabel)
@@ -322,11 +331,8 @@ export default class ExplainSelectionWithAiPlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign(
-			{},
-			DEFAULT_SETTINGS,
-			await this.loadData()
-		);
+		this.settings = migrateSettings(await this.loadData());
+		await this.saveSettings();
 	}
 
 	async saveSettings() {
@@ -377,6 +383,12 @@ export class ExplainSelectionWithAiModal extends Modal {
 		const RENDER_THROTTLE_MS = 50; // Throttle rendering to avoid UI lock on long outputs
 
 		const contentBox = contentEl.createEl("div", { cls: "selectable_text" });
+		const statusEl = contentEl.createEl("div", {
+			text: "Preparing explanation...",
+			attr: {
+				style: "margin-top: 8px; color: var(--text-muted); font-size: 12px;",
+			},
+		});
 
 		// Action row starts fully hidden (display:none) so no border/padding/space
 		// is visible while the AI streams. We show it only after streaming completes.
@@ -392,43 +404,146 @@ export class ExplainSelectionWithAiModal extends Modal {
 		});
 
 		try {
-			const systemPrompt = this.plugin.settings.systemPrompt || DEFAULT_SETTINGS.systemPrompt;
-			const userPromptTemplate = this.plugin.settings.userPromptTemplate || DEFAULT_SETTINGS.userPromptTemplate;
-			const userPrompt = buildPrompt(userPromptTemplate, this.userSelection, this.selectionContext);
-
-			const completion = await this.openai.chat.completions.create({
-				model: this.endpoint,
-				messages: [
-					{ role: "system", content: systemPrompt },
-					{ role: "user", content: userPrompt },
-				],
-				stream: true,
-				stream_options: { include_usage: true } as any,
-			});
-
-			for await (const chunk of completion) {
-				if (chunk.choices[0]?.delta?.content) {
-					if (firstTokenTime === null) {
-						firstTokenTime = Date.now();
-					}
-					rollingText += chunk.choices[0].delta.content;
-					
-					// Throttle rendering to avoid UI lock on long outputs
-					const now = Date.now();
-					if (now - lastRenderTime >= RENDER_THROTTLE_MS) {
-						contentBox.empty();
-						MarkdownRenderer.render(this.app, rollingText, contentBox, "/", this.plugin);
-						lastRenderTime = now;
-					}
+			let qualityInfo = "";
+			const renderChunk = (chunk: string) => {
+				if (firstTokenTime === null) firstTokenTime = Date.now();
+				rollingText += chunk;
+				const now = Date.now();
+				if (now - lastRenderTime >= RENDER_THROTTLE_MS) {
+					contentBox.empty();
+					MarkdownRenderer.render(
+						this.app,
+						rollingText,
+						contentBox,
+						"/",
+						this.plugin
+					);
+					lastRenderTime = now;
 				}
+			};
 
-				if ((chunk as any).usage) {
-					promptTokens = (chunk as any).usage.prompt_tokens;
-					completionTokens = (chunk as any).usage.completion_tokens;
+			if (this.plugin.settings.promptProfile === "wikipedia") {
+				const client: ArticlePipelineClient = {
+					complete: async (messages: ChatMessage[]) => {
+						const response = await this.openai.chat.completions.create({
+							model: this.endpoint,
+							messages,
+							stream: false,
+						});
+						const content = response.choices[0]?.message?.content;
+						if (!content) {
+							throw new Error(
+								"The provider returned an empty pipeline response. Try a stronger chat model or verify provider compatibility."
+							);
+						}
+						return {
+							content,
+							usage: {
+								promptTokens: response.usage?.prompt_tokens ?? 0,
+								completionTokens: response.usage?.completion_tokens ?? 0,
+							},
+						};
+					},
+					stream: async (
+						messages: ChatMessage[],
+						onChunk: (chunk: string) => void
+					) => {
+						const completion = await this.openai.chat.completions.create({
+							model: this.endpoint,
+							messages,
+							stream: true,
+							stream_options: { include_usage: true } as any,
+						});
+						let content = "";
+						let streamPromptTokens = 0;
+						let streamCompletionTokens = 0;
+						for await (const chunk of completion) {
+							const text = chunk.choices[0]?.delta?.content;
+							if (text) {
+								content += text;
+								onChunk(text);
+							}
+							if ((chunk as any).usage) {
+								streamPromptTokens = (chunk as any).usage.prompt_tokens ?? 0;
+								streamCompletionTokens =
+									(chunk as any).usage.completion_tokens ?? 0;
+							}
+						}
+						return {
+							content,
+							usage: {
+								promptTokens: streamPromptTokens,
+								completionTokens: streamCompletionTokens,
+							},
+						};
+					},
+				};
+
+				const phaseLabels: Record<ArticlePipelinePhase, string> = {
+					enumerating: "Enumerating established meanings...",
+					resolving: "Resolving the intended meaning...",
+					writing: "Writing a neutral encyclopedia article...",
+					validating: "Checking neutrality and completeness...",
+					repairing: "Repairing the article against the quality rubric...",
+				};
+				const result = await generateWikipediaArticle({
+					term: this.userSelection,
+					context: this.selectionContext,
+					client,
+					onFirstToken: () => {
+						if (firstTokenTime === null) firstTokenTime = Date.now();
+					},
+					onPhaseChange: (phase) => {
+						statusEl.setText(phaseLabels[phase]);
+						if (phase === "repairing") {
+							rollingText = "";
+							lastRenderTime = 0;
+							contentBox.empty();
+						}
+					},
+					onArticleChunk: (chunk) => renderChunk(chunk),
+				});
+				rollingText = result.article;
+				promptTokens = result.usage.promptTokens;
+				completionTokens = result.usage.completionTokens;
+				qualityInfo = `\n- **Article profile:** Wikipedia (validated${
+					result.repaired ? ", repaired" : ""
+				})`;
+			} else {
+				statusEl.setText("Writing a custom response...");
+				const systemPrompt =
+					this.plugin.settings.systemPrompt || DEFAULT_SETTINGS.systemPrompt;
+				const userPromptTemplate =
+					this.plugin.settings.userPromptTemplate ||
+					DEFAULT_SETTINGS.userPromptTemplate;
+				const userPrompt = buildPrompt(
+					userPromptTemplate,
+					this.userSelection,
+					this.selectionContext
+				);
+				const completion = await this.openai.chat.completions.create({
+					model: this.endpoint,
+					messages: [
+						{ role: "system", content: systemPrompt },
+						{ role: "user", content: userPrompt },
+					],
+					stream: true,
+					stream_options: { include_usage: true } as any,
+				});
+
+				for await (const chunk of completion) {
+					const text = chunk.choices[0]?.delta?.content;
+					if (text) renderChunk(text);
+					if ((chunk as any).usage) {
+						promptTokens = (chunk as any).usage.prompt_tokens ?? 0;
+						completionTokens =
+							(chunk as any).usage.completion_tokens ?? 0;
+					}
 				}
 			}
 			
 			// Final render to ensure all content is displayed
+			statusEl.remove();
 			contentBox.empty();
 			MarkdownRenderer.render(this.app, rollingText, contentBox, "/", this.plugin);
 
@@ -459,7 +574,7 @@ export class ExplainSelectionWithAiModal extends Modal {
 				? `, Speed: ${tps} tok/s`
 				: "";
 			const timingInfo = `\n- **Timing:** ${(totalDuration / 1000).toFixed(2)}s total (TTFT: ${ttft}ms${speedInfo})`;
-			const metadata = `\n\n---\n**Metadata**\n- **Model:** ${this.endpoint}${tokenInfo}${costInfo}${timingInfo}\n- **Date:** ${new Date().toISOString()}`;
+			const metadata = `\n\n---\n**Metadata**\n- **Model:** ${this.endpoint}${qualityInfo}${tokenInfo}${costInfo}${timingInfo}\n- **Date:** ${new Date().toISOString()}`;
 
 			// Re-render content with metadata visible in the modal
 			const fullText = rollingText + metadata;
@@ -569,6 +684,8 @@ export class ExplainSelectionWithAiModal extends Modal {
 				}
 			});
 		} catch (err: unknown) {
+			statusEl.remove();
+			contentBox.empty();
 			contentBox.toggleClass("selectable_text", false);
 
 			const content = contentBox.createEl("p");
@@ -638,36 +755,65 @@ class ExplainSelectionWithAiSettingTab extends PluginSettingTab {
 					});
 			});
 
-		// Prompt settings
 		new Setting(containerEl)
-			.setName("System prompt")
-			.setDesc("The system prompt sent to the LLM.")
-			.addTextArea((text) => {
-				text
-					.setPlaceholder("You are a helpful assistant.")
-					.setValue(this.plugin.settings.systemPrompt)
+			.setName("Article profile")
+			.setDesc(
+				"Wikipedia enumerates senses without context, uses note context only to choose a candidate index, then validates and repairs a neutral standalone article. Custom preserves the legacy single-prompt behavior."
+			)
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption("wikipedia", "Wikipedia (recommended)")
+					.addOption("custom", "Custom (legacy)")
+					.setValue(this.plugin.settings.promptProfile)
 					.onChange(async (value) => {
-						this.plugin.settings.systemPrompt = value;
+						this.plugin.settings.promptProfile =
+							value === "custom" ? "custom" : "wikipedia";
 						await this.plugin.saveSettings();
+						this.display();
 					});
-				text.inputEl.rows = 3;
-				text.inputEl.cols = 50;
 			});
 
-		new Setting(containerEl)
-			.setName("User prompt template")
-			.setDesc("Template for the user prompt. Use {{selection}} and {{context}} as placeholders.")
-			.addTextArea((text) => {
-				text
-					.setPlaceholder(DEFAULT_SETTINGS.userPromptTemplate)
-					.setValue(this.plugin.settings.userPromptTemplate)
-					.onChange(async (value) => {
-						this.plugin.settings.userPromptTemplate = value;
-						await this.plugin.saveSettings();
-					});
-				text.inputEl.rows = 3;
-				text.inputEl.cols = 50;
-			});
+		if (this.plugin.settings.promptProfile === "wikipedia") {
+			new Setting(containerEl)
+				.setName("Wikipedia quality contract")
+				.setDesc(
+					"Context is sent only to the sense resolver. The article writer receives the term and a short sense label, and output must pass neutrality, origin/history, standalone, context-leak, and unsupported-claim checks."
+				);
+		} else {
+			new Setting(containerEl)
+				.setName("System prompt")
+				.setDesc(
+					"Legacy custom system prompt. Custom mode sends surrounding context to the writer and does not enforce the Wikipedia quality contract."
+				)
+				.addTextArea((text) => {
+					text
+						.setPlaceholder("You are a helpful assistant.")
+						.setValue(this.plugin.settings.systemPrompt)
+						.onChange(async (value) => {
+							this.plugin.settings.systemPrompt = value;
+							await this.plugin.saveSettings();
+						});
+					text.inputEl.rows = 3;
+					text.inputEl.cols = 50;
+				});
+
+			new Setting(containerEl)
+				.setName("User prompt template")
+				.setDesc(
+					"Legacy template. Use {{selection}} and {{context}} as placeholders."
+				)
+				.addTextArea((text) => {
+					text
+						.setPlaceholder(DEFAULT_SETTINGS.userPromptTemplate)
+						.setValue(this.plugin.settings.userPromptTemplate)
+						.onChange(async (value) => {
+							this.plugin.settings.userPromptTemplate = value;
+							await this.plugin.saveSettings();
+						});
+					text.inputEl.rows = 3;
+					text.inputEl.cols = 50;
+				});
+		}
 
 		this.displayConditionalSettings(containerEl);
 	}

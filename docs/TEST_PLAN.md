@@ -12,7 +12,7 @@ This plan defines a **multi-layered testing strategy** that balances coverage wi
 **Coverage target: All pure business logic**
 **Runs: CI, local, pre-commit**
 
-Extract all logic with zero Obsidian dependencies into `lib.ts`. Test with Jest.
+Extract logic with zero Obsidian dependencies into `lib.ts` and `article-pipeline.ts`. Test with Jest.
 
 **What belongs in `lib.ts` (no `import` from `"obsidian"`):**
 
@@ -28,6 +28,16 @@ Extract all logic with zero Obsidian dependencies into `lib.ts`. Test with Jest.
 | `DEFAULT_SETTINGS` | Settings defaults constant |
 | `ExplainSelectionWithAiPluginSettings` | Settings interface |
 | `ModelInfo` | Model info interface |
+| `migrateSettings(data)` | Version prompt profiles without overwriting custom prompts |
+| `generateWikipediaArticle(options)` | Resolve sense, write, validate, conditionally repair, and validate again |
+| Pipeline message builders | Enumerate senses without context, then expose context only to a numeric candidate selector |
+| Pipeline JSON parsers | Defensively parse portable provider responses |
+| Deterministic article checks | Require minimum sections and reject explicit context references |
+
+**Additional test files:**
+
+- `article-pipeline.test.ts` — stage boundaries, ambiguous terms, repair, fail-closed validation, and adversarial context leakage
+- `settings.test.ts` — new install, untouched legacy, customized legacy, and current-profile migration
 
 **Test file: `lib.test.ts`**
 
@@ -184,7 +194,7 @@ These CANNOT be automated without a full Obsidian runtime. Document as a checkli
 - [ ] Select text in editor, right-click shows context menu item whose label is derived from `userPromptTemplate` (default: starts with "Explain ..." and ends with "...")
 - [ ] Menu item label truncates selection longer than 24 chars
 - [ ] Clicking opens modal with selected text as title
-- [ ] Response streams in with markdown rendering
+- [ ] Unvalidated responses remain buffered; only a validated article is rendered
 - [ ] System prompt from settings is used (verify with a distinctive system prompt)
 - [ ] User prompt template with placeholders works correctly
 - [ ] Error displays actual API error message and status code
@@ -221,11 +231,14 @@ Use one of these approaches if full automation is desired:
 
 ```
 ├── src/
+│   ├── article-pipeline.ts  # Pure staged generation and quality enforcement
 │   ├── main.ts              # Obsidian-dependent code (plugin, modals, settings UI)
-│   └── lib.ts               # Pure logic (no obsidian imports) - TESTABLE
+│   └── lib.ts               # Pure settings/provider utilities
 ├── tests/
-│   ├── lib.test.ts          # Unit tests for lib.ts
-│   └── integration.test.ts  # Integration tests with mocked fetcher
+│   ├── article-pipeline.test.ts
+│   ├── lib.test.ts
+│   ├── readme.test.ts
+│   └── settings.test.ts
 ├── jest.config.js           # Jest configuration
 ├── tsconfig.json            # TypeScript config (exclude test files from build)
 ├── package.json             # Added jest, ts-jest, @types/jest

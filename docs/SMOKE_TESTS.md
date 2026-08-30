@@ -7,8 +7,9 @@ Run these manually in Obsidian before each release.
 - [ ] Plugin appears in Settings > Community Plugins
 - [ ] Provider dropdown shows: OpenAI, OpenRouter, Ollama, Custom
 - [ ] Switching provider updates conditional settings correctly
-- [ ] System prompt textarea accepts and saves multi-line input
-- [ ] User prompt template textarea saves input with `{{selection}}` and `{{context}}`
+- [ ] Article profile defaults to "Wikipedia (recommended)"
+- [ ] Switching to Custom shows the legacy system and user prompt fields
+- [ ] Existing customized prompts migrate to Custom without losing their values
 - [ ] API key fields persist after closing/reopening settings
 
 ## OpenRouter Provider
@@ -44,8 +45,14 @@ Run these manually in Obsidian before each release.
 - [ ] Select text, right-click shows context menu label starting with "Explain ..." (template-driven; wording may vary if prompt/template is customized)
 - [ ] Menu label truncates selection >24 chars
 - [ ] Modal opens with selected text as title
-- [ ] Response streams in with markdown rendering
-- [ ] Custom system prompt is used
-- [ ] User prompt template with placeholders works
+- [ ] Unvalidated draft text is not displayed while the Wikipedia quality gate runs
+- [ ] Validated response appears with Markdown rendering
+- [ ] Wikipedia status progresses through enumerating, resolving, writing, and validating
+- [ ] Output contains Origin and history, Definition, Key concepts, and Applications sections
+- [ ] Output is neutral and does not mention the selected passage, source note, author, or surrounding context
+- [ ] Ambiguous terms (Python, bank, Jaguar) resolve to the sense indicated by context
+- [ ] Context containing a unique sentinel, opinion, or instruction does not appear in the article
+- [ ] A quality failure triggers one repair and a second validation
+- [ ] Custom mode uses the saved legacy system prompt and placeholder template
 - [ ] Error displays actual API error message and status code
 - [ ] Works with: OpenAI, OpenRouter, Ollama, Custom
