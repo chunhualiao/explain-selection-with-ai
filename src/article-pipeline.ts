@@ -138,7 +138,8 @@ export function parseSenseResolution(text: string): SenseResolution {
 	}
 	if (
 		/_/.test(sense) ||
-		/\b(obviously|useless|best|worst|wonderful|terrible|should|must|ignore|instruction|prompt|user|author)\b/i.test(
+		/\b(obviously|useless|wonderful|terrible)\b/i.test(sense) ||
+		/\b(ignore|disregard|reveal|copy)\b.{0,40}\b(instruction|prompt|context|secret)\b/i.test(
 			sense
 		)
 	) {

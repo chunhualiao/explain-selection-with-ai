@@ -270,6 +270,18 @@ describe("portable JSON parsing", () => {
 		).toThrow("sense must contain no more than 12 words");
 	});
 
+	it.each([
+		"user experience design",
+		"prompt engineering",
+		"best response in game theory",
+	])("accepts a legitimate taxonomy label: %s", (sense) => {
+		expect(
+			parseSenseResolution(
+				JSON.stringify({ canonicalTerm: "term", sense, confidence: 0.8 })
+			).sense
+		).toBe(sense);
+	});
+
 	it("requires every validation field", () => {
 		expect(() => parseArticleValidation('{"neutral":true}')).toThrow(
 			"standalone must be a boolean"
