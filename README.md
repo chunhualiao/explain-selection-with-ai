@@ -13,7 +13,7 @@ An [Obsidian](https://obsidian.md) plugin that explains selected text using AI. 
 3. The surrounding line is used only to resolve the intended sense of an ambiguous term.
 4. The resolved term and short sense label—without the raw context—are used to write a neutral, standalone encyclopedia article.
 5. A quality gate validates completeness, neutrality, unsupported claims, and context leakage; a failing draft is repaired once and validated again.
-6. The article **streams in real time** as rendered Markdown, followed by metadata (model, profile, tokens, cost, and timing).
+6. The validated article is displayed as rendered Markdown, followed by metadata (model, profile, tokens, cost, and timing). Unvalidated drafts are never shown or made savable.
 7. Optionally click **"Save as Note & Link"** to save the explanation as a new note and replace your selection with a `[[wiki-link]]` to it.
 
 ## Ways to Trigger
@@ -60,9 +60,9 @@ Choose from four provider options in the plugin settings:
 
 Each provider supports a **"Browse Models"** button in settings that fetches and displays available models from the provider's API. You can search and filter models by name or ID.
 
-### Streaming Markdown responses
+### Validated Markdown responses
 
-The AI response streams into a modal dialog in real time. Text is rendered as full Markdown (headings, lists, code blocks, LaTeX, etc.) using Obsidian's built-in Markdown renderer, so it integrates naturally with your vault's theme and styling.
+The provider response is buffered while the quality gate runs. Only a draft that passes validation—or a repaired article that passes the second validation—is displayed in the modal. Accepted text is rendered as full Markdown (headings, lists, code blocks, LaTeX, etc.) using Obsidian's built-in Markdown renderer, so it integrates naturally with your vault's theme and styling.
 
 ### Wikipedia article profile and custom prompts
 

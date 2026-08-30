@@ -45,7 +45,8 @@ Run these manually in Obsidian before each release.
 - [ ] Select text, right-click shows context menu label starting with "Explain ..." (template-driven; wording may vary if prompt/template is customized)
 - [ ] Menu label truncates selection >24 chars
 - [ ] Modal opens with selected text as title
-- [ ] Response streams in with markdown rendering
+- [ ] Unvalidated draft text is not displayed while the Wikipedia quality gate runs
+- [ ] Validated response appears with Markdown rendering
 - [ ] Wikipedia status progresses through resolving, writing, and validating
 - [ ] Output contains Origin and history, Definition, Key concepts, and Applications sections
 - [ ] Output is neutral and does not mention the selected passage, source note, author, or surrounding context

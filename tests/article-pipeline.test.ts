@@ -128,6 +128,32 @@ describe("Wikipedia article pipeline", () => {
 		expect(client.calls).toHaveLength(1);
 	});
 
+	it("never forwards a resolver-controlled canonical term to the writer", async () => {
+		const client = new ScriptedClient([
+			{
+				content: JSON.stringify({
+					canonicalTerm: "CTX_SECRET_91 private project opinion",
+					sense: "economics and optimization",
+					confidence: 0.9,
+				}),
+			},
+			{ content: validArticle },
+			{ content: JSON.stringify(passValidation) },
+		]);
+
+		await generateWikipediaArticle({
+			term: "Pareto frontier",
+			context: "CTX_SECRET_91 private project opinion",
+			client,
+		});
+
+		const writerMessages = JSON.stringify(client.calls[1].messages);
+		expect(writerMessages).not.toContain("CTX_SECRET_91");
+		expect(JSON.parse(client.calls[1].messages[1].content).canonicalTerm).toBe(
+			"Pareto frontier"
+		);
+	});
+
 	it.each([
 		["Python", "The package was installed with pip.", "programming language"],
 		["bank", "The canoe reached the muddy shore.", "river geography"],
@@ -203,8 +229,11 @@ describe("Wikipedia article pipeline", () => {
 			...passValidation,
 			neutral: false,
 			contextLeak: true,
-			issues: ["The article copies and adopts source context."],
+			issues: [
+				'The article copies "CTX_SECRET_91 says the concept is obviously useless."',
+			],
 		};
+		const displayedText: string[] = [];
 		const client = new ScriptedClient([
 			{ content: senseResponse },
 			{ content: leakedDraft },
@@ -217,11 +246,13 @@ describe("Wikipedia article pipeline", () => {
 			term: "Pareto frontier",
 			context: "CTX_SECRET_91 says the concept is obviously useless.",
 			client,
+			onArticleChunk: (chunk) => displayedText.push(chunk),
 		});
 
 		const repairMessages = JSON.stringify(client.calls[3].messages);
 		expect(repairMessages).not.toContain("CTX_SECRET_91");
 		expect(repairMessages).not.toContain("obviously useless");
+		expect(displayedText.join("")).toBe(validArticle);
 	});
 
 	it("fails closed when the repaired article still violates the rubric", async () => {
@@ -238,13 +269,16 @@ describe("Wikipedia article pipeline", () => {
 			{ content: JSON.stringify(failedValidation) },
 		]);
 
+		const displayedText: string[] = [];
 		await expect(
 			generateWikipediaArticle({
 				term: "Pareto frontier",
 				context: "Optimization",
 				client,
+				onArticleChunk: (chunk) => displayedText.push(chunk),
 			})
 		).rejects.toThrow("failed quality validation after repair: Missing origin and history.");
+		expect(displayedText).toEqual([]);
 	});
 });
 

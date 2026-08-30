@@ -307,7 +307,9 @@ export function buildRepairMessages(
 				selectedTerm: term,
 				canonicalTerm: resolution.canonicalTerm,
 				resolvedSense: resolution.sense,
-				qualityIssues: validation.issues,
+				qualityIssues: regenerate
+					? ["Context leakage detected; regenerate from term and sense only."]
+					: validation.issues,
 				failedRubric: {
 					standalone: !validation.standalone,
 					neutral: !validation.neutral,
@@ -348,12 +350,22 @@ export async function generateWikipediaArticle(
 		buildSenseResolutionMessages(term, context)
 	);
 	addUsage(usage, senseResponse.usage);
-	const resolution = parseSenseResolution(senseResponse.content);
+	const parsedResolution = parseSenseResolution(senseResponse.content);
+	const selectedTerm = term.trim();
+	if (!selectedTerm) throw new Error("The selected term must not be empty.");
+	const resolution: SenseResolution = {
+		...parsedResolution,
+		// Resolver-controlled canonical text is never forwarded. The user-selected
+		// term is the only article title input; the resolver contributes only sense.
+		canonicalTerm: selectedTerm,
+	};
 
 	onPhaseChange?.("writing");
 	const draftResponse = await client.stream(
 		buildArticleMessages(term, resolution),
-		(chunk) => onArticleChunk?.(chunk, "draft")
+		() => {
+			// Buffer unvalidated output. It must not reach the UI or save path.
+		}
 	);
 	addUsage(usage, draftResponse.usage);
 	if (!draftResponse.content.trim()) {
@@ -370,6 +382,7 @@ export async function generateWikipediaArticle(
 		parseArticleValidation(validationResponse.content)
 	);
 	if (!articleNeedsRepair(validation)) {
+		onArticleChunk?.(draftResponse.content, "draft");
 		return {
 			article: draftResponse.content,
 			resolution,
@@ -382,7 +395,9 @@ export async function generateWikipediaArticle(
 	onPhaseChange?.("repairing");
 	const repairResponse = await client.stream(
 		buildRepairMessages(term, resolution, draftResponse.content, validation),
-		(chunk) => onArticleChunk?.(chunk, "repair")
+		() => {
+			// Buffer repaired output until the second validation passes.
+		}
 	);
 	addUsage(usage, repairResponse.usage);
 	if (!repairResponse.content.trim()) {
@@ -403,6 +418,7 @@ export async function generateWikipediaArticle(
 			`Article failed quality validation after repair: ${validationFailureMessage(validation)}`
 		);
 	}
+	onArticleChunk?.(repairResponse.content, "repair");
 
 	return {
 		article: repairResponse.content,
