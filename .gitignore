@@ -18,5 +18,19 @@ main.js
 # obsidian
 data.json
 
+# Secrets and credentials - NEVER commit these
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*secret*
+*credential*
+*token*
+!**/src/**
+!**/tests/**
+!**/docs/**
+
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store

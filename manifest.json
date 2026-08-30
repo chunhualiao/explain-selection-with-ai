@@ -1,10 +1,10 @@
 {
 	"id": "explain-selection-with-ai",
 	"name": "Explain Selection With AI",
-	"version": "1.0.1",
+	"version": "2.1.1",
 	"minAppVersion": "0.15.0",
-	"description": "Use an OpenAI Chat Completion API-compatible LLM endpoint to explain the selected text in greater detail.",
-	"author": "Ben Wurster",
-	"authorUrl": "https://benwurster.com",
+	"description": "Use OpenAI, OpenRouter, Ollama, or any OpenAI-compatible LLM endpoint to explain selected text in context.",
+	"author": "Chunhua Liao (original work by BWurster)",
+	"authorUrl": "https://github.com/liaosvcaf",
 	"isDesktopOnly": false
 }
