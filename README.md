@@ -10,9 +10,11 @@ An [Obsidian](https://obsidian.md) plugin that explains selected text using AI. 
 
 1. **Select text** in any note.
 2. **Trigger the plugin** using one of the methods below.
-3. A modal opens and the AI response **streams in real time** as rendered Markdown.
-4. When the response completes, **metadata** (model, tokens, cost, timing) is appended to the modal.
-5. Optionally click **"Save as Note & Link"** to save the explanation as a new note and replace your selection with a `[[wiki-link]]` to it.
+3. The surrounding line is used only to resolve the intended sense of an ambiguous term.
+4. The resolved term and short sense label—without the raw context—are used to write a neutral, standalone encyclopedia article.
+5. A quality gate validates completeness, neutrality, unsupported claims, and context leakage; a failing draft is repaired once and validated again.
+6. The article **streams in real time** as rendered Markdown, followed by metadata (model, profile, tokens, cost, and timing).
+7. Optionally click **"Save as Note & Link"** to save the explanation as a new note and replace your selection with a `[[wiki-link]]` to it.
 
 ## Ways to Trigger
 
@@ -62,14 +64,15 @@ Each provider supports a **"Browse Models"** button in settings that fetches and
 
 The AI response streams into a modal dialog in real time. Text is rendered as full Markdown (headings, lists, code blocks, LaTeX, etc.) using Obsidian's built-in Markdown renderer, so it integrates naturally with your vault's theme and styling.
 
-### Customizable prompts
+### Wikipedia article profile and custom prompts
 
-In the plugin settings you can configure:
+New installations use the **Wikipedia** article profile by default. It runs a staged pipeline:
 
-- **System prompt** — The system message sent to the LLM (default: *"You are a helpful assistant."*)
-- **User prompt template** — Supports `{{selection}}` and `{{context}}` placeholders. The `{{selection}}` placeholder is replaced with your selected text, and `{{context}}` is replaced with the surrounding text on the same line (up to 500 characters on each side of the cursor). Default: *`Explain "{{selection}}" in the context of "{{context}}"`*
+- **Sense resolution** receives the selected term and surrounding text, treats that text as untrusted data, and returns only a canonical term plus a taxonomy label of at most 12 words.
+- **Article writing** receives the term and sense label, never the raw context. It must produce a neutral, third-person article with Origin and history, Definition, Key concepts, and Applications sections.
+- **Validation and repair** checks the draft against structured and deterministic rules. A failing draft is repaired once and must pass a second validation before it can be saved.
 
-This lets you tailor the plugin for different use cases — definitions, translations, summaries, ELI5 explanations, or anything else.
+The staged profile uses additional model calls and may therefore take longer and cost more than a single prompt. Existing customized prompts migrate to an explicit **Custom (legacy)** profile and remain editable. Custom mode preserves the original `{{selection}}` / `{{context}}` behavior, but it does not provide Wikipedia-style or context-isolation guarantees.
 
 ### Save as Note & Link
 
@@ -88,6 +91,7 @@ If a note with that name already exists, you're given two choices:
 When the AI response completes, metadata is displayed at the bottom of the modal (and included in saved notes):
 
 - **Model** — The model ID used for the response
+- **Article profile** — Whether the Wikipedia draft passed directly or required repair
 - **Tokens** — Prompt and completion token counts (when the provider reports usage)
 - **Cost** — Estimated cost in USD (available for OpenRouter models with pricing data)
 - **Timing** — Total response duration, time-to-first-token (TTFT), and tokens per second

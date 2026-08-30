@@ -11,7 +11,16 @@ export interface ExplainSelectionWithAiPluginSettings {
 	openRouterTitle: string;
 	systemPrompt: string;
 	userPromptTemplate: string;
+	promptProfile: PromptProfile;
+	promptProfileVersion: number;
 }
+
+export type PromptProfile = "wikipedia" | "custom";
+
+export const CURRENT_PROMPT_PROFILE_VERSION = 1;
+export const LEGACY_SYSTEM_PROMPT = "You are a helpful assistant.";
+export const LEGACY_USER_PROMPT_TEMPLATE =
+	'Explain "{{selection}}" in the context of "{{context}}"';
 
 export const DEFAULT_SETTINGS: ExplainSelectionWithAiPluginSettings = {
 	dropdownValue: "openai",
@@ -22,9 +31,42 @@ export const DEFAULT_SETTINGS: ExplainSelectionWithAiPluginSettings = {
 	openRouterApiKey: "",
 	openRouterReferer: "",
 	openRouterTitle: "Obsidian Explain Selection",
-	systemPrompt: "You are a helpful assistant.",
-	userPromptTemplate: 'Explain "{{selection}}" in the context of "{{context}}"',
+	systemPrompt: LEGACY_SYSTEM_PROMPT,
+	userPromptTemplate: LEGACY_USER_PROMPT_TEMPLATE,
+	promptProfile: "wikipedia",
+	promptProfileVersion: CURRENT_PROMPT_PROFILE_VERSION,
 };
+
+/**
+ * Upgrade legacy settings without overwriting user-authored prompts.
+ * Untouched legacy defaults move to the Wikipedia profile; customized prompts
+ * remain available through the explicit Custom profile.
+ */
+export function migrateSettings(
+	data: Partial<ExplainSelectionWithAiPluginSettings> | null | undefined
+): ExplainSelectionWithAiPluginSettings {
+	if (
+		data?.promptProfileVersion === CURRENT_PROMPT_PROFILE_VERSION &&
+		(data.promptProfile === "wikipedia" || data.promptProfile === "custom")
+	) {
+		return { ...DEFAULT_SETTINGS, ...data };
+	}
+
+	const legacySystemPrompt = data?.systemPrompt ?? LEGACY_SYSTEM_PROMPT;
+	const legacyUserPrompt = data?.userPromptTemplate ?? LEGACY_USER_PROMPT_TEMPLATE;
+	const promptsAreUntouched =
+		legacySystemPrompt === LEGACY_SYSTEM_PROMPT &&
+		legacyUserPrompt === LEGACY_USER_PROMPT_TEMPLATE;
+
+	return {
+		...DEFAULT_SETTINGS,
+		...data,
+		systemPrompt: legacySystemPrompt,
+		userPromptTemplate: legacyUserPrompt,
+		promptProfile: promptsAreUntouched ? "wikipedia" : "custom",
+		promptProfileVersion: CURRENT_PROMPT_PROFILE_VERSION,
+	};
+}
 
 export interface ModelInfo {
 	id: string;
