@@ -480,6 +480,7 @@ export class ExplainSelectionWithAiModal extends Modal {
 				};
 
 				const phaseLabels: Record<ArticlePipelinePhase, string> = {
+					enumerating: "Enumerating established meanings...",
 					resolving: "Resolving the intended meaning...",
 					writing: "Writing a neutral encyclopedia article...",
 					validating: "Checking neutrality and completeness...",
@@ -754,7 +755,7 @@ class ExplainSelectionWithAiSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Article profile")
 			.setDesc(
-				"Wikipedia isolates note context to sense resolution, then validates and repairs a neutral standalone article. Custom preserves the legacy single-prompt behavior."
+				"Wikipedia enumerates senses without context, uses note context only to choose a candidate index, then validates and repairs a neutral standalone article. Custom preserves the legacy single-prompt behavior."
 			)
 			.addDropdown((dropdown) => {
 				dropdown

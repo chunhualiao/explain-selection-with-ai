@@ -30,7 +30,7 @@ Extract logic with zero Obsidian dependencies into `lib.ts` and `article-pipelin
 | `ModelInfo` | Model info interface |
 | `migrateSettings(data)` | Version prompt profiles without overwriting custom prompts |
 | `generateWikipediaArticle(options)` | Resolve sense, write, validate, conditionally repair, and validate again |
-| Pipeline message builders | Enforce that raw context appears only in sense-resolution messages |
+| Pipeline message builders | Enumerate senses without context, then expose context only to a numeric candidate selector |
 | Pipeline JSON parsers | Defensively parse portable provider responses |
 | Deterministic article checks | Require minimum sections and reject explicit context references |
 
@@ -194,7 +194,7 @@ These CANNOT be automated without a full Obsidian runtime. Document as a checkli
 - [ ] Select text in editor, right-click shows context menu item whose label is derived from `userPromptTemplate` (default: starts with "Explain ..." and ends with "...")
 - [ ] Menu item label truncates selection longer than 24 chars
 - [ ] Clicking opens modal with selected text as title
-- [ ] Response streams in with markdown rendering
+- [ ] Unvalidated responses remain buffered; only a validated article is rendered
 - [ ] System prompt from settings is used (verify with a distinctive system prompt)
 - [ ] User prompt template with placeholders works correctly
 - [ ] Error displays actual API error message and status code

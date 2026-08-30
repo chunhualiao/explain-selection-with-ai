@@ -47,7 +47,7 @@ Run these manually in Obsidian before each release.
 - [ ] Modal opens with selected text as title
 - [ ] Unvalidated draft text is not displayed while the Wikipedia quality gate runs
 - [ ] Validated response appears with Markdown rendering
-- [ ] Wikipedia status progresses through resolving, writing, and validating
+- [ ] Wikipedia status progresses through enumerating, resolving, writing, and validating
 - [ ] Output contains Origin and history, Definition, Key concepts, and Applications sections
 - [ ] Output is neutral and does not mention the selected passage, source note, author, or surrounding context
 - [ ] Ambiguous terms (Python, bank, Jaguar) resolve to the sense indicated by context

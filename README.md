@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/chunhualiao/explain-selection-with-ai/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/chunhualiao/explain-selection-with-ai/actions/workflows/ci.yml)
 
-An [Obsidian](https://obsidian.md) plugin that explains selected text using AI. Select any text, trigger the plugin via the context menu, command palette, or mobile toolbar, and get a streaming AI-powered explanation rendered as Markdown — right inside Obsidian.
+An [Obsidian](https://obsidian.md) plugin that explains selected text using AI. Select any text, trigger the plugin via the context menu, command palette, or mobile toolbar, and get a validated AI-powered encyclopedia article rendered as Markdown — right inside Obsidian.
 
 **Maintainers:** Chunhua Liao (primary maintainer) · BWurster (original creator)
 
@@ -10,11 +10,12 @@ An [Obsidian](https://obsidian.md) plugin that explains selected text using AI. 
 
 1. **Select text** in any note.
 2. **Trigger the plugin** using one of the methods below.
-3. The surrounding line is used only to resolve the intended sense of an ambiguous term.
-4. The resolved term and short sense label—without the raw context—are used to write a neutral, standalone encyclopedia article.
-5. A quality gate validates completeness, neutrality, unsupported claims, and context leakage; a failing draft is repaired once and validated again.
-6. The validated article is displayed as rendered Markdown, followed by metadata (model, profile, tokens, cost, and timing). Unvalidated drafts are never shown or made savable.
-7. Optionally click **"Save as Note & Link"** to save the explanation as a new note and replace your selection with a `[[wiki-link]]` to it.
+3. A context-free call enumerates established meanings for the selected term.
+4. The surrounding line is given to a constrained selector that can return only a candidate index and confidence; it cannot author text for the article.
+5. The chosen context-free term and sense label are used to write a neutral, standalone encyclopedia article.
+6. A quality gate validates completeness, neutrality, unsupported claims, and context leakage; a failing draft is repaired once and validated again.
+7. The validated article is displayed as rendered Markdown, followed by metadata (model, profile, tokens, cost, and timing). Unvalidated drafts are never shown or made savable.
+8. Optionally click **"Save as Note & Link"** to save the explanation as a new note and replace your selection with a `[[wiki-link]]` to it.
 
 ## Ways to Trigger
 
@@ -68,11 +69,12 @@ The provider response is buffered while the quality gate runs. Only a draft that
 
 New installations use the **Wikipedia** article profile by default. It runs a staged pipeline:
 
-- **Sense resolution** receives the selected term and surrounding text, treats that text as untrusted data, and returns only a canonical term plus a taxonomy label of at most 12 words.
-- **Article writing** receives the term and sense label, never the raw context. It must produce a neutral, third-person article with Origin and history, Definition, Key concepts, and Applications sections.
+- **Sense enumeration** receives only the selected term and returns up to eight established, neutral taxonomy candidates.
+- **Sense selection** receives those candidates plus untrusted surrounding text and can return only a numeric candidate index and confidence. It cannot create term or sense text.
+- **Article writing** receives the chosen context-free candidate, never the raw context. It must produce a neutral, third-person article with Origin and history, Definition, Key concepts, and Applications sections.
 - **Validation and repair** checks the draft against structured and deterministic rules. A failing draft is repaired once and must pass a second validation before it can be saved.
 
-The staged profile uses additional model calls and may therefore take longer and cost more than a single prompt. Existing customized prompts migrate to an explicit **Custom (legacy)** profile and remain editable. Custom mode preserves the original `{{selection}}` / `{{context}}` behavior, but it does not provide Wikipedia-style or context-isolation guarantees.
+The staged profile uses four model calls for a passing draft and six when repair is required, so it may take longer and cost more than a single prompt. Existing customized prompts migrate to an explicit **Custom (legacy)** profile and remain editable. Custom mode preserves the original `{{selection}}` / `{{context}}` behavior, but it does not provide Wikipedia-style or context-isolation guarantees.
 
 ### Save as Note & Link
 
